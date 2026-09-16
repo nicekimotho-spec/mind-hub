@@ -1,0 +1,338 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  THERAPIST
+  ADMIN
+  CLINICAL_DIRECTOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum TherapistStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum RiskLevel {
+  NONE
+  LOW
+  ELEVATED
+  CRITICAL
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentProvider {
+  MPESA
+  CARD
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum SessionChannel {
+  VIDEO
+  AUDIO
+}
+
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  TECH_FAILURE
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id            String     @id @default(uuid())
+  email         String?    @unique
+  phone         String     @unique
+  passwordHash  String
+  role          UserRole
+  status        UserStatus @default(ACTIVE)
+  phoneVerified Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  clientProfile    ClientProfile?
+  therapistProfile TherapistProfile?
+  refreshTokens    RefreshToken[]
+  otpCodes         OtpCode[]
+  auditLogs        AuditLogEntry[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  purpose   String   @default("PHONE_VERIFICATION")
+  expiresAt DateTime
+  consumedAt DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model ClientProfile {
+  userId            String    @id
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName          String
+  preferredLanguage String    @default("en")
+  dateOfBirth       DateTime?
+  isMinor           Boolean   @default(false)
+  guardianContact   String?
+
+  @@map("client_profiles")
+}
+
+model TherapistProfile {
+  userId       String          @id
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName     String
+  status       TherapistStatus @default(PENDING_VERIFICATION)
+  bio          String?
+  specialties  String[]
+  languages    String[]
+  approach     String?
+  feeKES       Int
+  verifiedAt   DateTime?
+  verifiedById String?
+  createdAt    DateTime        @default(now())
+
+  credentials TherapistCredential[]
+  slots       AvailabilitySlot[]
+
+  @@map("therapist_profiles")
+}
+
+model TherapistCredential {
+  id           String            @id @default(uuid())
+  therapistId  String
+  therapist    TherapistProfile  @relation(fields: [therapistId], references: [userId], onDelete: Cascade)
+  type         String
+  documentUrl  String
+  verified     Boolean           @default(false)
+  verifiedById String?
+  verifiedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([therapistId])
+  @@map("therapist_credentials")
+}
+
+model AvailabilitySlot {
+  id          String            @id @default(uuid())
+  therapistId String
+  therapist   TherapistProfile  @relation(fields: [therapistId], references: [userId], onDelete: Cascade)
+  startTime   DateTime
+  endTime     DateTime
+  isBooked    Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+
+  booking Booking?
+
+  @@unique([therapistId, startTime])
+  @@map("availability_slots")
+}
+
+model IntakeAssessment {
+  id                            String    @id @default(uuid())
+  clientId                      String
+  presentingConcern             String
+  concernTags                   String[]
+  preferredApproach             String?
+  preferredCommunicationMethod  String?
+  previousCounsellingExperience Boolean?
+  availability                  Json
+  safetyAnswers                 Json
+  riskLevel                     RiskLevel
+  blockedBooking                Boolean   @default(false)
+  createdAt                     DateTime  @default(now())
+
+  matchResult MatchResult?
+
+  @@index([clientId])
+  @@map("intake_assessments")
+}
+
+model MatchResult {
+  id               String           @id @default(uuid())
+  intakeId         String           @unique
+  intake           IntakeAssessment @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  therapistIds     String[]
+  criteriaSnapshot Json
+  createdAt        DateTime         @default(now())
+
+  @@map("match_results")
+}
+
+model Booking {
+  id          String        @id @default(uuid())
+  clientId    String
+  therapistId String
+  slotId      String        @unique
+  slot        AvailabilitySlot @relation(fields: [slotId], references: [id])
+  status      BookingStatus @default(PENDING_PAYMENT)
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime
+
+  payment Payment?
+  session Session?
+  consent ConsentRecord?
+
+  @@index([clientId])
+  @@index([therapistId])
+  @@map("bookings")
+}
+
+model ConsentVersion {
+  id          String   @id @default(uuid())
+  version     Int      @unique
+  content     String
+  effectiveAt DateTime
+
+  @@map("consent_versions")
+}
+
+model ConsentRecord {
+  id               String   @id @default(uuid())
+  bookingId        String   @unique
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientId         String
+  consentVersionId String
+  acceptedAt       DateTime @default(now())
+
+  @@map("consent_records")
+}
+
+model Payment {
+  id                String          @id @default(uuid())
+  bookingId         String          @unique
+  booking           Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  provider          PaymentProvider
+  amountKES         Int
+  status            PaymentStatus   @default(INITIATED)
+  providerReference String?         @unique
+  idempotencyKey    String          @unique
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("payments")
+}
+
+model Session {
+  id        String         @id @default(uuid())
+  bookingId String         @unique
+  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  channel   SessionChannel
+  status    SessionStatus  @default(SCHEDULED)
+  roomToken String?
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  incidents SafeguardingIncident[]
+
+  @@map("sessions")
+}
+
+model SafeguardingIncident {
+  id                   String           @id @default(uuid())
+  clientId             String
+  therapistId          String
+  sessionId            String?
+  session              Session?         @relation(fields: [sessionId], references: [id])
+  triggeredBy          String
+  severity             IncidentSeverity
+  actionsTaken         Json
+  supervisorNotifiedAt DateTime?
+  outcome              String?
+  createdAt            DateTime         @default(now())
+
+  @@index([clientId])
+  @@map("safeguarding_incidents")
+}
+
+model Complaint {
+  id          String          @id @default(uuid())
+  userId      String
+  description String
+  status      ComplaintStatus @default(OPEN)
+  resolution  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("complaints")
+}
+
+model AuditLogEntry {
+  id           String   @id @default(uuid())
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id])
+  action       String
+  resourceType String
+  resourceId   String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([resourceType, resourceId])
+  @@map("audit_log_entries")
+}

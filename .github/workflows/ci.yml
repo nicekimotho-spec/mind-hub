@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mindhub
+          POSTGRES_PASSWORD: mindhub
+          POSTGRES_DB: mindhub_test
+        ports:
+          - 5546:5432
+        options: >-
+          --health-cmd "pg_isready -U mindhub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Generate Prisma client
+        run: npm run db:generate --workspace apps/api
+
+      - name: Run migrations against test database
+        run: npm run db:migrate:deploy --workspace apps/api
+        env:
+          DATABASE_URL: postgresql://mindhub:mindhub@localhost:5546/mindhub_test
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Build
+        run: npm run build

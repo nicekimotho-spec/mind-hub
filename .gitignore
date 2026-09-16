@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.local
+!.env.example
+# .env.test intentionally NOT ignored: it holds dummy, non-production test secrets
+# committed so CI and local integration tests share one source of config.
+*.log
+.DS_Store
+apps/api/prisma/dev.db
+apps/api/generated/
+.turbo/
