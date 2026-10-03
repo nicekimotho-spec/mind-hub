@@ -19,6 +19,21 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1).default("redis://localhost:6389"),
   BOOKING_HOLD_MINUTES: z.coerce.number().int().positive().default(15),
   CANCELLATION_WINDOW_HOURS: z.coerce.number().int().positive().default(24),
+
+  // M-Pesa Daraja (PRD §12, BUILD_PLAN.md §5 M5). Consumer key/secret/passkey are
+  // deliberately optional: without them the client runs in stub mode (see lib/mpesa.ts)
+  // so the platform is fully testable before real Safaricom credentials exist.
+  MPESA_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
+  MPESA_CONSUMER_KEY: z.string().optional(),
+  MPESA_CONSUMER_SECRET: z.string().optional(),
+  MPESA_SHORTCODE: z.string().default("174379"), // Safaricom's public sandbox test shortcode
+  MPESA_PASSKEY: z.string().optional(),
+  MPESA_CALLBACK_URL: z.string().default("http://localhost:4000/api/v1/payments/mpesa/callback"),
+  // Comma-separated IP allowlist for the callback endpoint; unset = no IP restriction
+  // (fine for local dev/test, not for production — see middleware/mpesaIpAllowlist.ts).
+  MPESA_CALLBACK_ALLOWED_IPS: z.string().optional(),
+
+  JOIN_WINDOW_MINUTES_BEFORE: z.coerce.number().int().nonnegative().default(10),
 });
 
 export const env = envSchema.parse(process.env);

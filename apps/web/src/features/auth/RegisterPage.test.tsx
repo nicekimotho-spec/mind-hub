@@ -22,7 +22,7 @@ describe("RegisterPage", () => {
 
     await user.type(screen.getByLabelText(/full name/i), "Jane Client");
     await user.type(screen.getByLabelText(/phone number/i), "12345");
-    await user.type(screen.getByLabelText(/^password$/i), "abcdefgh12");
+    await user.type(screen.getByLabelText(/^password/i), "abcdefgh12");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/valid kenyan phone number/i);
@@ -34,7 +34,7 @@ describe("RegisterPage", () => {
 
     await user.type(screen.getByLabelText(/full name/i), "Jane Client");
     await user.type(screen.getByLabelText(/phone number/i), "0712345678");
-    await user.type(screen.getByLabelText(/^password$/i), "abcdefgh12");
+    await user.type(screen.getByLabelText(/^password/i), "abcdefgh12");
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(await screen.findByText("Verify OTP Page")).toBeInTheDocument();

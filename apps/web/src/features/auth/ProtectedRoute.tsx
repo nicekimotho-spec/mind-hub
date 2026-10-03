@@ -6,7 +6,11 @@ export function ProtectedRoute({ children }: { children: ReactElement }) {
   const { status } = useAuth();
 
   if (status === "loading") {
-    return <p>Loading...</p>;
+    return (
+      <p role="status" aria-live="polite">
+        Loading...
+      </p>
+    );
   }
 
   if (status === "unauthenticated") {

@@ -10,11 +10,11 @@ export const therapistsRoutes = Router();
 
 // Public directory — only ever surfaces ACTIVE therapists (enforced in the service).
 therapistsRoutes.get("/", validateQuery(therapistDirectoryQuerySchema), controller.listPublic);
-therapistsRoutes.get("/:id", validateParams(idParamSchema), controller.getPublicById);
-therapistsRoutes.get("/:id/slots", validateParams(idParamSchema), controller.listSlots);
 
-// Own-profile management — therapist role only, scoped to req.user.id in the service.
+// Own-profile management — registered before the "/:id" wildcard routes below, since
+// Express would otherwise match e.g. "/me/slots" against "/:id/slots" with id="me".
 therapistsRoutes.get("/me/profile", authenticate, requireRole("THERAPIST"), controller.getMyProfile);
+therapistsRoutes.get("/me/slots", authenticate, requireRole("THERAPIST"), controller.listMySlots);
 
 therapistsRoutes.patch(
   "/me/profile",
@@ -39,3 +39,7 @@ therapistsRoutes.post(
   validateBody(createSlotRequestSchema),
   controller.createMySlot,
 );
+
+// Public wildcard routes — registered last, after every literal "/me/*" path above.
+therapistsRoutes.get("/:id", validateParams(idParamSchema), controller.getPublicById);
+therapistsRoutes.get("/:id/slots", validateParams(idParamSchema), controller.listSlots);

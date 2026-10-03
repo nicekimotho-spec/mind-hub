@@ -20,14 +20,27 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   accessToken?: string | null;
+  headers?: Record<string, string>;
+  query?: Record<string, string | undefined>;
+}
+
+function buildQueryString(query?: Record<string, string | undefined>): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, value);
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
 }
 
 export async function apiFetch<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}${buildQueryString(options.query)}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
       ...(options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {}),
+      ...options.headers,
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });

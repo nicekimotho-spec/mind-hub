@@ -234,9 +234,10 @@ model Booking {
   createdAt   DateTime      @default(now())
   expiresAt   DateTime
 
-  payment Payment?
-  session Session?
-  consent ConsentRecord?
+  payment  Payment?
+  session  Session?
+  consent  ConsentRecord?
+  feedback Feedback?
 
   @@index([clientId])
   @@index([therapistId])
@@ -308,6 +309,18 @@ model SafeguardingIncident {
 
   @@index([clientId])
   @@map("safeguarding_incidents")
+}
+
+model Feedback {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@map("feedback")
 }
 
 model Complaint {

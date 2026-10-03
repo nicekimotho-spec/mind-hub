@@ -8,6 +8,21 @@ export const notFoundHandler: RequestHandler = (req, res) => {
   });
 };
 
+/** True for the SyntaxError express.json() passes to next() when the request body
+ * isn't valid JSON — body-parser marks it with status 400 and this specific type,
+ * distinguishing a malformed request (the client's fault, a 400) from a genuine
+ * server bug (a 500). Without this check every bad request body surfaced as an
+ * unhandled 500 INTERNAL_ERROR. */
+function isJsonBodyParseError(err: unknown): err is SyntaxError & { status: number; type: string } {
+  return (
+    err instanceof SyntaxError &&
+    "status" in err &&
+    (err as { status?: unknown }).status === 400 &&
+    "type" in err &&
+    (err as { type?: unknown }).type === "entity.parse.failed"
+  );
+}
+
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
@@ -15,6 +30,13 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     }
     res.status(err.statusCode).json({
       error: { code: err.code, message: err.message, details: err.details },
+    });
+    return;
+  }
+
+  if (isJsonBodyParseError(err)) {
+    res.status(400).json({
+      error: { code: "VALIDATION_ERROR", message: "Request body is not valid JSON" },
     });
     return;
   }

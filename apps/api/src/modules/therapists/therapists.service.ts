@@ -96,12 +96,13 @@ export async function addOwnCredential(userId: string, input: AddCredentialReque
   });
 }
 
-function toPublicSlot(slot: { id: string; therapistId: string; startTime: Date; endTime: Date }): PublicSlot {
+function toPublicSlot(slot: { id: string; therapistId: string; startTime: Date; endTime: Date; isBooked: boolean }): PublicSlot {
   return {
     id: slot.id,
     therapistId: slot.therapistId,
     startTime: slot.startTime.toISOString(),
     endTime: slot.endTime.toISOString(),
+    isBooked: slot.isBooked,
   };
 }
 
@@ -145,6 +146,20 @@ export async function listPublicSlots(therapistId: string): Promise<PublicSlot[]
 
   const slots = await prisma.availabilitySlot.findMany({
     where: { therapistId, isBooked: false, startTime: { gt: new Date() } },
+    orderBy: { startTime: "asc" },
+  });
+  return slots.map(toPublicSlot);
+}
+
+/** Unlike listPublicSlots, this is the therapist's own management view — every slot,
+ * booked or not, past or future, so they can see their real schedule. */
+export async function listOwnSlots(userId: string): Promise<PublicSlot[]> {
+  const profile = await prisma.therapistProfile.findUnique({ where: { userId } });
+  if (!profile) {
+    throw new NotFoundError("Therapist profile not found");
+  }
+  const slots = await prisma.availabilitySlot.findMany({
+    where: { therapistId: userId },
     orderBy: { startTime: "asc" },
   });
   return slots.map(toPublicSlot);

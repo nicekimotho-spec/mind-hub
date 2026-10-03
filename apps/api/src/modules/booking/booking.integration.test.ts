@@ -234,6 +234,20 @@ describe("POST /api/v1/bookings/:id/cancel", () => {
 
     expect(res.status).toBe(200);
   });
+
+  it("rejects a different (non-assigned) therapist from cancelling someone else's booking (404)", async () => {
+    const { slotId } = await createActiveTherapistWithSlot();
+    const { accessToken: clientToken } = await createTestUser("CLIENT");
+    const bookRes = await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`).send({ slotId });
+
+    const { accessToken: otherTherapistToken } = await createTestUser("THERAPIST");
+
+    const res = await request(app)
+      .post(`/api/v1/bookings/${bookRes.body.booking.id}/cancel`)
+      .set("Authorization", `Bearer ${otherTherapistToken}`);
+
+    expect(res.status).toBe(404);
+  });
 });
 
 describe("releaseExpiredBookings", () => {
@@ -283,5 +297,63 @@ describe("releaseExpiredBookings", () => {
 
     const slot = await prisma.availabilitySlot.findUniqueOrThrow({ where: { id: slotId } });
     expect(slot.isBooked).toBe(true);
+  });
+});
+
+describe("GET /api/v1/bookings", () => {
+  it("a client sees only their own bookings, hydrated with names and slot times", async () => {
+    const { slotId, therapistId } = await createActiveTherapistWithSlot();
+    const { accessToken: clientToken } = await createTestUser("CLIENT", { fullName: "Jane Client" });
+    await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`).send({ slotId });
+
+    // A second, unrelated client/booking must not leak into the first client's list.
+    const { slotId: otherSlotId } = await createActiveTherapistWithSlot();
+    const { accessToken: otherClientToken } = await createTestUser("CLIENT");
+    await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${otherClientToken}`).send({ slotId: otherSlotId });
+
+    const res = await request(app).get("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.bookings).toHaveLength(1);
+    expect(res.body.bookings[0].therapistId).toBe(therapistId);
+    expect(res.body.bookings[0].clientName).toBe("Jane Client");
+    expect(res.body.bookings[0].slot.id).toBe(slotId);
+    expect(res.body.bookings[0].paymentStatus).toBeNull();
+    expect(res.body.bookings[0].hasConsented).toBe(false);
+  });
+
+  it("a therapist sees bookings where they are the assigned therapist", async () => {
+    const { slotId, therapistId } = await createActiveTherapistWithSlot();
+    const { accessToken: clientToken } = await createTestUser("CLIENT");
+    await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`).send({ slotId });
+
+    const therapistUser = await prisma.user.findUniqueOrThrow({ where: { id: therapistId } });
+    const { signAccessToken } = await import("../../lib/jwt.js");
+    const therapistToken = signAccessToken({ sub: therapistUser.id, role: "THERAPIST" });
+
+    const res = await request(app).get("/api/v1/bookings").set("Authorization", `Bearer ${therapistToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.bookings).toHaveLength(1);
+  });
+});
+
+describe("GET /api/v1/bookings/:id", () => {
+  it("returns the hydrated detail for the owning client", async () => {
+    const { slotId } = await createActiveTherapistWithSlot();
+    const { accessToken: clientToken } = await createTestUser("CLIENT");
+    const bookRes = await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`).send({ slotId });
+
+    const res = await request(app).get(`/api/v1/bookings/${bookRes.body.booking.id}`).set("Authorization", `Bearer ${clientToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.booking.id).toBe(bookRes.body.booking.id);
+  });
+
+  it("returns 404 for a booking that belongs to neither the caller's client nor therapist identity", async () => {
+    const { slotId } = await createActiveTherapistWithSlot();
+    const { accessToken: clientToken } = await createTestUser("CLIENT");
+    const bookRes = await request(app).post("/api/v1/bookings").set("Authorization", `Bearer ${clientToken}`).send({ slotId });
+
+    const { accessToken: strangerToken } = await createTestUser("CLIENT");
+    const res = await request(app).get(`/api/v1/bookings/${bookRes.body.booking.id}`).set("Authorization", `Bearer ${strangerToken}`);
+    expect(res.status).toBe(404);
   });
 });

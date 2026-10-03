@@ -1,8 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { registerRequestSchema } from "@mind-hub/shared";
 import { registerRequest } from "./authApi";
 import { ApiClientError } from "../../api/client";
+import { zodErrorsToFieldMap } from "../../lib/zodErrors";
+import { Button } from "../../components/Button";
+import { Alert } from "../../components/Alert";
+import { Card } from "../../components/Card";
+import { TextField, SelectField } from "../../components/fields";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -11,12 +16,14 @@ export function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    setFieldErrors({});
 
     const parsed = registerRequestSchema.safeParse({
       role,
@@ -26,7 +33,7 @@ export function RegisterPage() {
       password,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Please check the form for errors");
+      setFieldErrors(zodErrorsToFieldMap(parsed.error));
       return;
     }
 
@@ -35,58 +42,84 @@ export function RegisterPage() {
       await registerRequest(parsed.data);
       navigate(`/verify-otp?phone=${encodeURIComponent(parsed.data.phone)}`);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Something went wrong. Please try again.");
+      setFormError(err instanceof ApiClientError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <main>
-      <h1>You don&apos;t have to figure everything out alone.</h1>
-      <p>Connect with a qualified counsellor from wherever you are.</p>
+    <div className="mx-auto max-w-md">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold text-stone-900">You don&apos;t have to figure everything out alone.</h1>
+        <p className="mt-2 text-sm text-stone-500">Connect with a qualified counsellor from wherever you are.</p>
+      </div>
 
-      <form onSubmit={handleSubmit} aria-label="Register">
-        <label htmlFor="role">I am a</label>
-        <select id="role" value={role} onChange={(e) => setRole(e.target.value as "CLIENT" | "THERAPIST")}>
-          <option value="CLIENT">Client looking for support</option>
-          <option value="THERAPIST">Therapist / counsellor</option>
-        </select>
+      <Card>
+        <form onSubmit={handleSubmit} aria-label="Register" noValidate className="space-y-4">
+          <SelectField id="role" label="I am a" value={role} onChange={(e) => setRole(e.target.value as "CLIENT" | "THERAPIST")}>
+            <option value="CLIENT">Client looking for support</option>
+            <option value="THERAPIST">Therapist / counsellor</option>
+          </SelectField>
 
-        <label htmlFor="fullName">Full name</label>
-        <input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          <TextField
+            id="fullName"
+            label="Full name"
+            autoComplete="name"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            error={fieldErrors["fullName"]}
+          />
 
-        <label htmlFor="phone">Phone number</label>
-        <input
-          id="phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="0712345678"
-          required
-        />
+          <TextField
+            id="phone"
+            label="Phone number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="0712345678"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            error={fieldErrors["phone"]}
+          />
 
-        <label htmlFor="email">Email (optional)</label>
-        <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField
+            id="email"
+            label="Email (optional)"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={fieldErrors["email"]}
+          />
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          <TextField
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="new-password"
+            hint="At least 10 characters, with a mix of letters and numbers."
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={fieldErrors["password"]}
+          />
 
-        {error && (
-          <p role="alert" style={{ color: "crimson" }}>
-            {error}
+          {formError && <Alert variant="error">{formError}</Alert>}
+
+          <Button type="submit" isLoading={submitting} className="w-full">
+            {submitting ? "Creating account..." : "Create account"}
+          </Button>
+
+          <p className="text-center text-sm text-stone-500">
+            Already have an account?{" "}
+            <Link to="/login" className="font-medium text-brand-700 hover:underline">
+              Log in
+            </Link>
           </p>
-        )}
-
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Creating account..." : "Create account"}
-        </button>
-      </form>
-    </main>
+        </form>
+      </Card>
+    </div>
   );
 }

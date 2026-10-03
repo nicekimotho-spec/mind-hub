@@ -1,4 +1,4 @@
-import type { CreateBookingRequest } from "@mind-hub/shared";
+import type { BookingDetail, CreateBookingRequest } from "@mind-hub/shared";
 import { prisma } from "../../lib/db.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 import { env } from "../../config/env.js";
@@ -68,6 +68,76 @@ async function getOwnedBooking(actorId: string, actorRole: string, bookingId: st
     throw new NotFoundError("Booking not found");
   }
   return booking;
+}
+
+type BookingForHydration = Awaited<ReturnType<typeof prisma.booking.findFirstOrThrow<{
+  include: { slot: true; payment: true; consent: true; session: true; feedback: true };
+}>>>;
+
+/**
+ * Booking.clientId/therapistId are plain fields, not Prisma relations (see
+ * schema.prisma), so names have to be joined here rather than via `include` — batched
+ * to avoid an N+1 query per row when hydrating a list.
+ */
+async function hydrateBookings(bookings: BookingForHydration[]): Promise<BookingDetail[]> {
+  const clientIds = [...new Set(bookings.map((b) => b.clientId))];
+  const therapistIds = [...new Set(bookings.map((b) => b.therapistId))];
+
+  const [clients, therapists] = await Promise.all([
+    prisma.clientProfile.findMany({ where: { userId: { in: clientIds } } }),
+    prisma.therapistProfile.findMany({ where: { userId: { in: therapistIds } } }),
+  ]);
+  const clientById = new Map(clients.map((c) => [c.userId, c]));
+  const therapistById = new Map(therapists.map((t) => [t.userId, t]));
+
+  return bookings.map((b) => ({
+    id: b.id,
+    status: b.status,
+    createdAt: b.createdAt.toISOString(),
+    expiresAt: b.expiresAt.toISOString(),
+    slot: { id: b.slot.id, startTime: b.slot.startTime.toISOString(), endTime: b.slot.endTime.toISOString() },
+    clientId: b.clientId,
+    clientName: clientById.get(b.clientId)?.fullName ?? "Unknown",
+    therapistId: b.therapistId,
+    therapistName: therapistById.get(b.therapistId)?.fullName ?? "Unknown",
+    feeKES: therapistById.get(b.therapistId)?.feeKES ?? 0,
+    paymentStatus: b.payment?.status ?? null,
+    hasConsented: b.consent != null,
+    sessionId: b.session?.id ?? null,
+    sessionStatus: b.session?.status ?? null,
+    hasFeedback: b.feedback != null,
+  }));
+}
+
+export async function listOwnBookings(userId: string, role: string): Promise<BookingDetail[]> {
+  const bookings = await prisma.booking.findMany({
+    where: role === "THERAPIST" ? { therapistId: userId } : { clientId: userId },
+    include: { slot: true, payment: true, consent: true, session: true, feedback: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return hydrateBookings(bookings);
+}
+
+/** Same ownership rule as every other booking action (BUILD_PLAN.md §8.6): a non-owner
+ * gets 404, never a glimpse of the booking's existence via a 403. */
+export async function getOwnBookingDetail(userId: string, role: string, bookingId: string): Promise<BookingDetail> {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { slot: true, payment: true, consent: true, session: true, feedback: true },
+  });
+  if (!booking) {
+    throw new NotFoundError("Booking not found");
+  }
+  const isOwnerClient = booking.clientId === userId;
+  const isOwnerTherapist = role === "THERAPIST" && booking.therapistId === userId;
+  if (!isOwnerClient && !isOwnerTherapist) {
+    throw new NotFoundError("Booking not found");
+  }
+  const [detail] = await hydrateBookings([booking]);
+  if (!detail) {
+    throw new NotFoundError("Booking not found");
+  }
+  return detail;
 }
 
 export async function cancelBooking(actorId: string, actorRole: string, bookingId: string) {

@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  /* System font stack — no external font download, matching the platform's own
+     bandwidth-consciousness (PRD: audio fallback, works on low-bandwidth connections). */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* Warm teal brand scale — calming and professional without reading clinical/cold. */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+
+  /* Warm accent — used sparingly (badges, highlights), never as the primary action color. */
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/* Visible only when focused via keyboard — lets keyboard/screen-reader users jump
+   straight past the nav to the page content. */
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50
+    focus:rounded-md focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-white
+    focus:shadow-lg;
+}

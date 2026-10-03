@@ -77,3 +77,13 @@ export const listSlots: RequestHandler = async (req, res, next) => {
     next(err);
   }
 };
+
+export const listMySlots: RequestHandler = async (req, res, next) => {
+  try {
+    if (!req.user) throw new AuthError("Not authenticated");
+    const slots = await therapistsService.listOwnSlots(req.user.id);
+    res.status(200).json({ slots });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -278,3 +278,39 @@ describe("Admin therapist verification workflow", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("GET /api/v1/therapists/me/slots", () => {
+  it("lists every slot for the therapist, including booked ones — unlike the public listing", async () => {
+    const { user: therapist, accessToken } = await createUser("THERAPIST", { phone: "+254703111222" });
+    const startTime = new Date(Date.now() + 60 * 60 * 1000);
+    await prisma.availabilitySlot.create({
+      data: { therapistId: therapist.id, startTime, endTime: new Date(startTime.getTime() + 60 * 60 * 1000), isBooked: true },
+    });
+    await prisma.availabilitySlot.create({
+      data: {
+        therapistId: therapist.id,
+        startTime: new Date(startTime.getTime() + 2 * 60 * 60 * 1000),
+        endTime: new Date(startTime.getTime() + 3 * 60 * 60 * 1000),
+      },
+    });
+
+    const res = await request(app).get("/api/v1/therapists/me/slots").set("Authorization", `Bearer ${accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.slots).toHaveLength(2);
+    expect(res.body.slots.some((s: { isBooked: boolean }) => s.isBooked)).toBe(true);
+  });
+
+  it("does not require the requesting route to be confused with a public :id lookup", async () => {
+    // Regression guard: GET /:id/slots (public) is registered after GET /me/slots — if
+    // that ordering ever regresses, this request would 404 as "therapist not found"
+    // (id="me") instead of returning the therapist's own slots.
+    const { accessToken } = await createUser("THERAPIST", { phone: "+254703333444" });
+    const res = await request(app).get("/api/v1/therapists/me/slots").set("Authorization", `Bearer ${accessToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects an unauthenticated request (401)", async () => {
+    const res = await request(app).get("/api/v1/therapists/me/slots");
+    expect(res.status).toBe(401);
+  });
+});
