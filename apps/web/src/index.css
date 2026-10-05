@@ -42,3 +42,11 @@ body {
     focus:rounded-md focus:bg-brand-700 focus:px-4 focus:py-2 focus:text-white
     focus:shadow-lg;
 }
+
+/* Smooth-scroll the landing page's in-page links (/#faq etc.), unless the user has asked
+   the OS to minimise motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

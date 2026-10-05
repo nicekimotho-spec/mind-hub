@@ -17,6 +17,11 @@ import { sessionsRoutes } from "./modules/sessions/sessions.routes.js";
 import { complaintsRoutes } from "./modules/complaints/complaints.routes.js";
 import { adminComplaintsRoutes } from "./modules/admin/adminComplaints.routes.js";
 import { adminReportsRoutes } from "./modules/admin/adminReports.routes.js";
+import { careTeamRoutes } from "./modules/careTeam/careTeam.routes.js";
+import { messagesRoutes } from "./modules/messages/messages.routes.js";
+import { clientsRoutes, goalsRoutes, journalRoutes, worksheetsRoutes } from "./modules/toolkit/toolkit.routes.js";
+import { adminFeeAssistanceRoutes, feeAssistanceRoutes } from "./modules/feeAssistance/feeAssistance.routes.js";
+import { giftsRoutes } from "./modules/gifts/gifts.routes.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 
 export function createApp(): Express {
@@ -44,6 +49,15 @@ export function createApp(): Express {
   app.use("/api/v1/complaints", complaintsRoutes);
   app.use("/api/v1/admin/complaints", adminComplaintsRoutes);
   app.use("/api/v1/admin/reports", adminReportsRoutes);
+  app.use("/api/v1/care-team", careTeamRoutes);
+  app.use("/api/v1/messages", messagesRoutes);
+  app.use("/api/v1/journal", journalRoutes);
+  app.use("/api/v1/goals", goalsRoutes);
+  app.use("/api/v1/worksheets", worksheetsRoutes);
+  app.use("/api/v1/clients", clientsRoutes);
+  app.use("/api/v1/fee-assistance", feeAssistanceRoutes);
+  app.use("/api/v1/admin/fee-assistance", adminFeeAssistanceRoutes);
+  app.use("/api/v1/gifts", giftsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

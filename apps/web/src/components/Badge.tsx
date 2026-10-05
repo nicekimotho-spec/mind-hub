@@ -34,6 +34,15 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   SUCCEEDED: "positive",
   FAILED: "negative",
   REFUNDED: "info",
+  ACHIEVED: "positive",
+  ARCHIVED: "neutral",
+  NOT_STARTED: "neutral",
+  APPROVED: "positive",
+  USED_UP: "neutral",
+  EXPIRED: "neutral",
+  PAYMENT_FAILED: "negative",
+  DECLINED: "negative",
+  IN_PROGRESS: "info",
 };
 
 export function Badge({ tone, children, className }: { tone: BadgeTone; children: React.ReactNode; className?: string }) {

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const INTAKE_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
 export const INTAKE_TIMES_OF_DAY = ["MORNING", "AFTERNOON", "EVENING"] as const;
-export const COMMUNICATION_METHODS = ["VIDEO", "AUDIO"] as const;
+export const COMMUNICATION_METHODS = ["VIDEO", "AUDIO", "CHAT"] as const;
 
 export const CONCERN_TAGS = [
   "Individual counselling",

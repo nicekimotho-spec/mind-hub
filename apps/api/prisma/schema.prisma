@@ -46,6 +46,7 @@ enum BookingStatus {
 enum PaymentProvider {
   MPESA
   CARD
+  GIFT
 }
 
 enum PaymentStatus {
@@ -59,6 +60,7 @@ enum PaymentStatus {
 enum SessionChannel {
   VIDEO
   AUDIO
+  CHAT
 }
 
 enum SessionStatus {
@@ -91,6 +93,9 @@ model User {
   role          UserRole
   status        UserStatus @default(ACTIVE)
   phoneVerified Boolean    @default(false)
+  /// Session reminders and new-message alerts by SMS. On by default; clients on a shared
+  /// phone may want them off, so it's a single, easy-to-find switch.
+  smsNotificationsEnabled Boolean @default(true)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -153,6 +158,12 @@ model TherapistProfile {
   languages    String[]
   approach     String?
   feeKES       Int
+  photoUrl           String?
+  yearsExperience    Int?
+  /// Lower fee for clients approved for fee assistance; null = not offered.
+  reducedFeeKES      Int?
+  /// Professional board registration/licence number, shown publicly so clients can check it.
+  registrationNumber String?
   verifiedAt   DateTime?
   verifiedById String?
   createdAt    DateTime        @default(now())
@@ -233,6 +244,15 @@ model Booking {
   status      BookingStatus @default(PENDING_PAYMENT)
   createdAt   DateTime      @default(now())
   expiresAt   DateTime
+  /// Set when the corresponding SMS reminder is claimed for sending — see
+  /// modules/notifications/reminders.service.ts. Null means "not sent yet".
+  reminderDaySentAt  DateTime?
+  reminderHourSentAt DateTime?
+  /// The fee agreed when the booking was made, so a later change to the therapist's fee
+  /// never changes what an already-booked client pays. Null on bookings made before this
+  /// column existed — those fall back to the therapist's current fee.
+  feeKES      Int?
+  reducedFee  Boolean       @default(false)
 
   payment  Payment?
   session  Session?
@@ -348,4 +368,176 @@ model AuditLogEntry {
   @@index([actorId])
   @@index([resourceType, resourceId])
   @@map("audit_log_entries")
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  clientId    String
+  therapistId String
+  senderId    String
+  body        String
+  /// Set by the keyword screen in lib/riskLanguage.ts on client messages, so the sender
+  /// is shown emergency numbers and the therapist sees the message highlighted.
+  riskFlagged Boolean   @default(false)
+  /// Set when sent during a live text-chat session; the message still belongs to the
+  /// client–therapist conversation, so the transcript appears there too.
+  sessionId   String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([clientId, therapistId, createdAt])
+  @@index([therapistId, clientId, createdAt])
+  @@index([sessionId, createdAt])
+  @@map("messages")
+}
+
+/// A client asking for new matches instead of their current therapist (FR-CLI-11). The
+/// reason is for platform quality review only — it is never shown to the therapist.
+model TherapistSwitch {
+  id                    String   @id @default(uuid())
+  clientId              String
+  fromTherapistId       String
+  reason                String
+  comment               String?
+  suggestedTherapistIds String[]
+  createdAt             DateTime @default(now())
+
+  @@index([clientId])
+  @@index([fromTherapistId])
+  @@map("therapist_switches")
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  ARCHIVED
+}
+
+enum WorksheetStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Client toolkit items (journal, goals, worksheets) are private to the client unless
+/// they share an individual item with one therapist from their care team.
+model JournalEntry {
+  id                    String   @id @default(uuid())
+  clientId              String
+  title                 String?
+  body                  String
+  mood                  Int?
+  sharedWithTherapistId String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([clientId, createdAt])
+  @@index([sharedWithTherapistId])
+  @@map("journal_entries")
+}
+
+model Goal {
+  id                    String     @id @default(uuid())
+  clientId              String
+  title                 String
+  description           String?
+  status                GoalStatus @default(ACTIVE)
+  progress              Int        @default(0)
+  sharedWithTherapistId String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@index([clientId])
+  @@index([sharedWithTherapistId])
+  @@map("goals")
+}
+
+/// One client's answers to one worksheet (definitions live in packages/shared/src/worksheets.ts).
+model WorksheetResponse {
+  id                    String          @id @default(uuid())
+  clientId              String
+  worksheetSlug         String
+  assignedById          String?
+  assignmentNote        String?
+  status                WorksheetStatus @default(NOT_STARTED)
+  answers               Json            @default("{}")
+  sharedWithTherapistId String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  completedAt           DateTime?
+
+  @@index([clientId])
+  @@index([sharedWithTherapistId])
+  @@map("worksheet_responses")
+}
+
+enum FeeAssistanceStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+/// A client's application for reduced fees (PRD §16 cross-subsidy model), reviewed by an admin.
+model FeeAssistanceApplication {
+  id            String              @id @default(uuid())
+  clientId      String
+  incomeBand    String
+  householdSize Int?
+  reason        String
+  status        FeeAssistanceStatus @default(PENDING)
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  /// Set on approval: reduced fees apply to bookings made before this time.
+  expiresAt     DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([status])
+  @@map("fee_assistance_applications")
+}
+
+enum GiftVoucherStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  USED_UP
+  PAYMENT_FAILED
+}
+
+/// Prepaid session credit bought for someone else. Spent session by session via
+/// GiftRedemption; expiry is checked at redemption rather than stored as a status.
+model GiftVoucher {
+  id                String            @id @default(uuid())
+  /// Stored without the display dash, uppercase (see modules/gifts/giftCode.ts).
+  code              String            @unique
+  purchaserId       String
+  amountKES         Int
+  balanceKES        Int               @default(0)
+  recipientName     String?
+  recipientPhone    String?
+  message           String?
+  status            GiftVoucherStatus @default(PENDING_PAYMENT)
+  idempotencyKey    String            @unique
+  providerReference String?           @unique
+  expiresAt         DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  redemptions GiftRedemption[]
+
+  @@index([purchaserId])
+  @@map("gift_vouchers")
+}
+
+model GiftRedemption {
+  id        String      @id @default(uuid())
+  voucherId String
+  voucher   GiftVoucher @relation(fields: [voucherId], references: [id])
+  bookingId String      @unique
+  clientId  String
+  amountKES Int
+  createdAt DateTime    @default(now())
+
+  @@index([voucherId])
+  @@map("gift_redemptions")
 }

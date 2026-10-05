@@ -3,6 +3,7 @@ import { prisma } from "../../lib/db.js";
 import { ConflictError, NotFoundError } from "../../lib/errors.js";
 import { initiateStkPush, parseMpesaCallback, type MpesaStkCallbackPayload } from "../../lib/mpesa.js";
 import { logger } from "../../lib/logger.js";
+import { handleGiftPaymentCallback } from "../gifts/gifts.service.js";
 
 /**
  * Books a payment attempt for a booking. Payment.bookingId is unique — only one Payment
@@ -26,12 +27,14 @@ export async function initiatePayment(clientId: string, bookingId: string, idemp
     throw new ConflictError(`Booking is not awaiting payment (status: ${booking.status})`);
   }
 
-  // Booking.therapistId is a plain field, not a Prisma relation (see schema.prisma) —
-  // the therapist's current fee is looked up separately.
+  // The fee agreed at booking time (which may be a reduced fee); bookings made before
+  // fees were recorded on the booking fall back to the therapist's current fee.
+  // Booking.therapistId is a plain field, not a Prisma relation (see schema.prisma).
   const [client, therapist] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: clientId } }),
     prisma.therapistProfile.findUniqueOrThrow({ where: { userId: booking.therapistId } }),
   ]);
+  const amountKES = booking.feeKES ?? therapist.feeKES;
   const existing = booking.payment;
 
   if (existing) {
@@ -49,7 +52,7 @@ export async function initiatePayment(clientId: string, bookingId: string, idemp
 
   const stk = await initiateStkPush({
     phone: client.phone,
-    amountKES: therapist.feeKES,
+    amountKES,
     accountReference: booking.id,
     transactionDesc: "Mind Hub counselling session",
   });
@@ -62,7 +65,7 @@ export async function initiatePayment(clientId: string, bookingId: string, idemp
           status: "PENDING",
           idempotencyKey,
           providerReference: stk.checkoutRequestId,
-          amountKES: therapist.feeKES,
+          amountKES,
         },
       });
     }
@@ -70,7 +73,7 @@ export async function initiatePayment(clientId: string, bookingId: string, idemp
       data: {
         bookingId,
         provider: "MPESA",
-        amountKES: therapist.feeKES,
+        amountKES,
         status: "PENDING",
         idempotencyKey,
         providerReference: stk.checkoutRequestId,
@@ -102,6 +105,8 @@ export async function handleMpesaCallback(payload: MpesaStkCallbackPayload): Pro
     include: { booking: true },
   });
   if (!payment) {
+    // Not a session payment — it may be a gift purchase, which has its own record.
+    if (await handleGiftPaymentCallback(parsed)) return;
     logger.warn({ checkoutRequestId: parsed.checkoutRequestId }, "M-Pesa callback for unknown CheckoutRequestID");
     return;
   }

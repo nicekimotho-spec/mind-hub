@@ -260,3 +260,58 @@ export function CheckboxGroupField({
     </fieldset>
   );
 }
+
+/** A labelled group of radio buttons for a single choice from a fixed list — used for
+ * switch reasons, income bands and gift amounts. */
+export function RadioGroupField<T extends string>({
+  legend,
+  name,
+  options,
+  labels,
+  value,
+  onChange,
+  hint,
+  error,
+}: {
+  legend: string;
+  name: string;
+  options: readonly T[];
+  labels: Record<T, string>;
+  value: T | "";
+  onChange: (value: T) => void;
+  hint?: string;
+  error?: string;
+}) {
+  const hintId = hint ? `${name}-hint` : undefined;
+  const errorId = error ? `${name}-error` : undefined;
+  return (
+    <fieldset aria-describedby={describedBy(hintId, errorId)}>
+      <legend className="mb-1 text-sm font-medium text-stone-700">{legend}</legend>
+      {hint && (
+        <p id={hintId} className="mb-2 text-xs text-stone-500">
+          {hint}
+        </p>
+      )}
+      <div className="space-y-2">
+        {options.map((option) => (
+          <label key={option} className="flex items-center gap-2 text-sm text-stone-700">
+            <input
+              type="radio"
+              name={name}
+              value={option}
+              checked={value === option}
+              onChange={() => onChange(option)}
+              className="h-4 w-4 border-stone-300 text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            {labels[option]}
+          </label>
+        ))}
+      </div>
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 text-xs font-medium text-rose-600">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
+}

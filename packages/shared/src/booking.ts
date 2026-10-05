@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PAYMENT_STATUSES } from "./payment.js";
-import { SESSION_STATUSES } from "./session.js";
+import { SESSION_CHANNELS, SESSION_STATUSES } from "./session.js";
 
 export const createSlotRequestSchema = z
   .object({
@@ -64,10 +64,13 @@ export const bookingDetailSchema = z.object({
   therapistId: z.string().uuid(),
   therapistName: z.string(),
   feeKES: z.number(),
+  /** True when the client is paying the therapist's reduced fee (feeAssistance.ts). */
+  reducedFee: z.boolean(),
   paymentStatus: z.enum(PAYMENT_STATUSES).nullable(),
   hasConsented: z.boolean(),
   sessionId: z.string().uuid().nullable(),
   sessionStatus: z.enum(SESSION_STATUSES).nullable(),
+  sessionChannel: z.enum(SESSION_CHANNELS).nullable(),
   hasFeedback: z.boolean(),
 });
 export type BookingDetail = z.infer<typeof bookingDetailSchema>;

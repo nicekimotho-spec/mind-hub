@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { completeSessionRequestSchema } from "@mind-hub/shared";
+import { completeSessionRequestSchema, sendMessageRequestSchema } from "@mind-hub/shared";
 import { idParamSchema } from "../../lib/paramSchemas.js";
 import { authenticate } from "../../middleware/auth.js";
 import { requireRole } from "../../middleware/rbac.js";
@@ -15,4 +15,14 @@ sessionsRoutes.post(
   validateParams(idParamSchema),
   validateBody(completeSessionRequestSchema),
   controller.complete,
+);
+
+sessionsRoutes.get("/:id/messages", authenticate, requireRole("CLIENT", "THERAPIST"), validateParams(idParamSchema), controller.getChat);
+sessionsRoutes.post(
+  "/:id/messages",
+  authenticate,
+  requireRole("CLIENT", "THERAPIST"),
+  validateParams(idParamSchema),
+  validateBody(sendMessageRequestSchema),
+  controller.sendChat,
 );

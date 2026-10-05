@@ -45,14 +45,47 @@ async function main() {
           fullName: "Demo Therapist",
           status: "ACTIVE",
           bio: "Seeded therapist for local development.",
-          specialties: ["Stress and anxiety", "Grief and life transitions"],
-          languages: ["en", "sw"],
+          specialties: ["Individual counselling", "Stress and anxiety management", "Grief and life transitions"],
+          languages: ["English", "Kiswahili"],
           feeKES: 2500,
           verifiedAt: new Date(),
         },
       },
     },
   });
+
+  // Applied on every run (unlike the create-only upserts above) so older dev databases
+  // pick up profile fields added after they were first seeded.
+  await prisma.therapistProfile.update({
+    where: { userId: therapist.id },
+    data: {
+      specialties: ["Individual counselling", "Stress and anxiety management", "Grief and life transitions"],
+      languages: ["English", "Kiswahili"],
+      yearsExperience: 6,
+      registrationNumber: "DEMO-0001",
+      reducedFeeKES: 1000,
+    },
+  });
+
+  // Keep three bookable slots open over the coming days, so the booking flow works out
+  // of the box. Days that already have a 10:00 slot (booked or not) are skipped, since
+  // a therapist can't have two slots starting at the same time.
+  const openSlots = await prisma.availabilitySlot.count({
+    where: { therapistId: therapist.id, isBooked: false, startTime: { gt: new Date() } },
+  });
+  for (let day = 1, added = 0; openSlots + added < 3 && day <= 60; day += 1) {
+    const startTime = new Date();
+    startTime.setDate(startTime.getDate() + day);
+    startTime.setHours(10, 0, 0, 0);
+    const taken = await prisma.availabilitySlot.findUnique({
+      where: { therapistId_startTime: { therapistId: therapist.id, startTime } },
+    });
+    if (taken) continue;
+    await prisma.availabilitySlot.create({
+      data: { therapistId: therapist.id, startTime, endTime: new Date(startTime.getTime() + 60 * 60 * 1000) },
+    });
+    added += 1;
+  }
 
   const consentVersion = await prisma.consentVersion.upsert({
     where: { version: 1 },

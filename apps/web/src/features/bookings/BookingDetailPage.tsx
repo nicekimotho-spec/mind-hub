@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useBooking } from "./hooks";
 import { PaymentPanel } from "./PaymentPanel";
@@ -29,6 +29,11 @@ export function BookingDetailPage() {
   const booking = data.booking;
   const isTherapist = user?.role === "THERAPIST";
   const isCancellable = booking.status === "PENDING_PAYMENT" || booking.status === "CONFIRMED";
+  // Matches the API's care-relationship rule (careTeam.service.ts): switching and shared
+  // toolkit items apply once a session has been paid for.
+  const hasCareRelationship = ["CONFIRMED", "COMPLETED", "NO_SHOW"].includes(booking.status);
+  const canSwitch = !isTherapist && hasCareRelationship;
+  const canSeeShared = isTherapist && hasCareRelationship;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -39,11 +44,24 @@ export function BookingDetailPage() {
           <dt className="text-stone-500">Session time</dt>
           <dd className="text-stone-900">{formatTimeRange(booking.slot.startTime, booking.slot.endTime)}</dd>
           <dt className="text-stone-500">Fee</dt>
-          <dd className="text-stone-900">{formatKES(booking.feeKES)}</dd>
+          <dd className="text-stone-900">
+            {formatKES(booking.feeKES)}
+            {booking.reducedFee && <span className="text-stone-500"> (reduced fee)</span>}
+          </dd>
         </dl>
-        {isCancellable && (
-          <div className="mt-4">
-            <CancelBookingButton bookingId={booking.id} />
+        {(isCancellable || canSwitch || canSeeShared) && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+            {isCancellable && <CancelBookingButton bookingId={booking.id} />}
+            {canSeeShared && (
+              <Link to={`/clients/${booking.clientId}`} className="text-sm font-medium text-brand-700 hover:underline">
+                Shared by {booking.clientName}
+              </Link>
+            )}
+            {canSwitch && (
+              <Link to={`/switch-therapist/${booking.therapistId}`} className="text-sm font-medium text-brand-700 hover:underline">
+                Switch therapist
+              </Link>
+            )}
           </div>
         )}
       </Card>

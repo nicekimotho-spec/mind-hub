@@ -34,3 +34,24 @@ export async function recordAuditLog(params: AuditLogParams): Promise<void> {
     logger.error({ err, action: params.action, resourceType: params.resourceType, resourceId: params.resourceId }, "failed to write audit log entry");
   }
 }
+
+/**
+ * For read access to something the UI polls, like an open message thread: writes the
+ * entry only if this actor has no identical entry within `withinMs`. The audit trail
+ * then records "viewed this conversation" once per sitting instead of every few seconds.
+ */
+export async function recordAccessAuditLog(params: AuditLogParams, withinMs = 30 * 60_000): Promise<void> {
+  const recent = await prisma.auditLogEntry.findFirst({
+    where: {
+      actorId: params.actorId,
+      action: params.action,
+      resourceType: params.resourceType,
+      resourceId: params.resourceId,
+      createdAt: { gte: new Date(Date.now() - withinMs) },
+    },
+    select: { id: true },
+  });
+  if (!recent) {
+    await recordAuditLog(params);
+  }
+}

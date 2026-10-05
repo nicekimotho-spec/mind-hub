@@ -26,6 +26,10 @@ export interface OwnTherapistProfile {
   languages: string[];
   approach: string | null;
   feeKES: number;
+  photoUrl: string | null;
+  yearsExperience: number | null;
+  registrationNumber: string | null;
+  reducedFeeKES: number | null;
   verifiedAt: string | null;
   createdAt: string;
   credentials: TherapistCredentialRecord[];

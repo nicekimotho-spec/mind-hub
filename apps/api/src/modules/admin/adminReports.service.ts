@@ -7,10 +7,12 @@ import { prisma } from "../../lib/db.js";
  * whether the platform is working, not just growing.
  */
 export async function getReportsOverview(): Promise<ReportsOverviewResponse> {
-  const [bookingCounts, revenue, openComplaints] = await Promise.all([
+  const [bookingCounts, revenue, openComplaints, therapistSwitches, pendingFeeAssistance] = await Promise.all([
     prisma.booking.groupBy({ by: ["status"], _count: { status: true } }),
     prisma.payment.aggregate({ where: { status: "SUCCEEDED" }, _sum: { amountKES: true } }),
     prisma.complaint.count({ where: { status: "OPEN" } }),
+    prisma.therapistSwitch.count(),
+    prisma.feeAssistanceApplication.count({ where: { status: "PENDING" } }),
   ]);
 
   const bookingsByStatus = Object.fromEntries(BOOKING_STATUSES.map((status) => [status, 0])) as Record<
@@ -34,5 +36,7 @@ export async function getReportsOverview(): Promise<ReportsOverviewResponse> {
     cancellationRate: totalBookings > 0 ? cancelled / totalBookings : 0,
     totalRevenueKES: revenue._sum.amountKES ?? 0,
     openComplaints,
+    therapistSwitches,
+    pendingFeeAssistance,
   };
 }

@@ -14,3 +14,12 @@ export const authRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/** Slows down anyone trying gift codes until one works. Codes aren't guessable (see
+ * modules/gifts/giftCode.ts), so this is defence in depth. Same test-mode rule as above. */
+export const giftRedeemRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: env.NODE_ENV === "test" ? 100_000 : 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});

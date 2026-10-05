@@ -10,5 +10,7 @@ export const reportsOverviewSchema = z.object({
   cancellationRate: z.number(), // CANCELLED / totalBookings
   totalRevenueKES: z.number(), // sum of SUCCEEDED payments
   openComplaints: z.number(),
+  therapistSwitches: z.number(), // clients who asked for new matches (FR-CLI-11)
+  pendingFeeAssistance: z.number(), // reduced-fee applications awaiting review
 });
 export type ReportsOverviewResponse = z.infer<typeof reportsOverviewSchema>;

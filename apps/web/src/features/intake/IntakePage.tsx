@@ -21,6 +21,12 @@ const DAY_LABELS: Record<string, string> = {
   SUN: "Sunday",
 };
 
+const COMMUNICATION_METHOD_LABELS: Record<(typeof COMMUNICATION_METHODS)[number], string> = {
+  VIDEO: "Video call",
+  AUDIO: "Audio call",
+  CHAT: "Text chat",
+};
+
 const TIME_LABELS: Record<string, string> = {
   MORNING: "Morning",
   AFTERNOON: "Afternoon",
@@ -159,7 +165,7 @@ export function IntakePage() {
             <option value="">No preference</option>
             {COMMUNICATION_METHODS.map((method) => (
               <option key={method} value={method}>
-                {method === "VIDEO" ? "Video call" : "Audio call"}
+                {COMMUNICATION_METHOD_LABELS[method]}
               </option>
             ))}
           </SelectField>

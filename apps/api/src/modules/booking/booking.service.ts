@@ -3,6 +3,7 @@ import { prisma } from "../../lib/db.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../lib/errors.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
+import { isEligibleForReducedFees } from "../feeAssistance/feeAssistance.service.js";
 
 /**
  * Books a slot inside a transaction using an atomic guarded UPDATE rather than a
@@ -33,6 +34,8 @@ export async function createBooking(clientId: string, input: CreateBookingReques
   }
 
   const expiresAt = new Date(Date.now() + env.BOOKING_HOLD_MINUTES * 60_000);
+  const reducedFee = slot.therapist.reducedFeeKES !== null && (await isEligibleForReducedFees(clientId));
+  const feeKES = reducedFee ? (slot.therapist.reducedFeeKES as number) : slot.therapist.feeKES;
 
   return prisma.$transaction(async (tx) => {
     const guardedUpdate = await tx.availabilitySlot.updateMany({
@@ -50,6 +53,8 @@ export async function createBooking(clientId: string, input: CreateBookingReques
         slotId: input.slotId,
         status: "PENDING_PAYMENT",
         expiresAt,
+        feeKES,
+        reducedFee,
       },
     });
   });
@@ -100,11 +105,13 @@ async function hydrateBookings(bookings: BookingForHydration[]): Promise<Booking
     clientName: clientById.get(b.clientId)?.fullName ?? "Unknown",
     therapistId: b.therapistId,
     therapistName: therapistById.get(b.therapistId)?.fullName ?? "Unknown",
-    feeKES: therapistById.get(b.therapistId)?.feeKES ?? 0,
+    feeKES: b.feeKES ?? therapistById.get(b.therapistId)?.feeKES ?? 0,
+    reducedFee: b.reducedFee,
     paymentStatus: b.payment?.status ?? null,
     hasConsented: b.consent != null,
     sessionId: b.session?.id ?? null,
     sessionStatus: b.session?.status ?? null,
+    sessionChannel: b.session?.channel ?? null,
     hasFeedback: b.feedback != null,
   }));
 }

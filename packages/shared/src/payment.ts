@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PAYMENT_PROVIDERS = ["MPESA", "CARD"] as const;
+export const PAYMENT_PROVIDERS = ["MPESA", "CARD", "GIFT"] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
 export const PAYMENT_STATUSES = ["INITIATED", "PENDING", "SUCCEEDED", "FAILED", "REFUNDED"] as const;

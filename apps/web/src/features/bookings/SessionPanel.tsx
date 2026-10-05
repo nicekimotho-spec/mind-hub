@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { BookingDetail, SessionChannel, SessionOutcome } from "@mind-hub/shared";
 import { useJoinSession } from "./hooks";
 import { useCompleteSession } from "../sessions/hooks";
+import { SessionChat } from "../sessions/SessionChat";
 import { Card } from "../../components/Card";
 import { Button } from "../../components/Button";
 import { Alert } from "../../components/Alert";
@@ -16,6 +17,15 @@ export function SessionPanel({ booking, isTherapist }: { booking: BookingDetail;
   const completeSession = useCompleteSession(booking.id);
 
   const sessionInProgress = booking.sessionStatus === "IN_PROGRESS";
+  // A chat that's already running (e.g. after a page refresh) reopens without rejoining:
+  // the chat endpoints apply the same participant and time-window checks as joining.
+  const chatSessionId =
+    joinSession.data?.channel === "CHAT"
+      ? joinSession.data.sessionId
+      : sessionInProgress && booking.sessionChannel === "CHAT"
+        ? booking.sessionId
+        : null;
+  const counterpartName = isTherapist ? booking.clientName : booking.therapistName;
 
   return (
     <Card>
@@ -30,7 +40,9 @@ export function SessionPanel({ booking, isTherapist }: { booking: BookingDetail;
         </Alert>
       )}
 
-      {joinSession.data ? (
+      {chatSessionId ? (
+        <SessionChat sessionId={chatSessionId} counterpartName={counterpartName} />
+      ) : joinSession.data ? (
         <Alert variant="success" className="mt-3">
           You&apos;re connected via {joinSession.data.channel === "VIDEO" ? "video" : "audio"}. (This is a placeholder connection —
           no real video/audio provider is wired up yet; see docs/BUILD_PLAN.md §12.)
@@ -46,6 +58,7 @@ export function SessionPanel({ booking, isTherapist }: { booking: BookingDetail;
             >
               <option value="VIDEO">Video</option>
               <option value="AUDIO">Audio only</option>
+              <option value="CHAT">Text chat</option>
             </SelectField>
           </div>
           <Button isLoading={joinSession.isPending} onClick={() => joinSession.mutate(channel)}>

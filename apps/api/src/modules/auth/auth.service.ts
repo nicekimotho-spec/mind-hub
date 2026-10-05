@@ -8,6 +8,7 @@ import { normalizePhone } from "../../lib/phone.js";
 import { AuthError, ConflictError, NotFoundError } from "../../lib/errors.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
+import { sendSms } from "../../lib/sms.js";
 
 const OTP_PURPOSE_PHONE_VERIFICATION = "PHONE_VERIFICATION";
 
@@ -76,9 +77,15 @@ export async function registerUser(input: RegisterRequest): Promise<{ userId: st
   });
 
   const otpCode = await issuePhoneVerificationOtp(user.id);
-  // No SMS provider wired yet — Phase 2 M5/M9 wires Africa's Talking (see BUILD_PLAN.md §7).
-  // Logging the code is a deliberate development-only stub, never acceptable in production.
-  logger.info({ userId: user.id, phone, otpCode }, "OTP issued (stub: not sent via SMS yet)");
+  // In SMS stub mode (no Africa's Talking credentials) sendSms logs the message, code
+  // included — a development convenience that disappears once real credentials exist.
+  // A failed send doesn't fail registration: the account already exists, and rolling it
+  // back here would leave the phone number neither registered nor verifiable.
+  try {
+    await sendSms(phone, `Your Mind Hub verification code is ${otpCode}. It expires in ${env.OTP_TTL_MINUTES} minutes.`);
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "Failed to send verification OTP by SMS");
+  }
 
   return { userId: user.id };
 }

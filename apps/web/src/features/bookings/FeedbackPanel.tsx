@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { createFeedbackRequestSchema } from "@mind-hub/shared";
+import { MIN_RATINGS_TO_DISPLAY, createFeedbackRequestSchema } from "@mind-hub/shared";
 import { useSubmitFeedback } from "./hooks";
 import { Card } from "../../components/Card";
 import { Button } from "../../components/Button";
@@ -45,6 +45,10 @@ export function FeedbackPanel({ bookingId }: { bookingId: string }) {
   return (
     <Card>
       <h2 className="font-medium text-stone-900">How was your session?</h2>
+      <p className="mt-1 text-sm text-stone-500">
+        Ratings appear on therapist profiles only as an average, once a therapist has at least {MIN_RATINGS_TO_DISPLAY}. Comments
+        are never published. They only reach the Mind Hub team.
+      </p>
       <form onSubmit={handleSubmit} noValidate className="mt-3 space-y-3">
         <SelectField id="rating" label="Rating" value={rating} onChange={(e) => setRating(e.target.value)}>
           {RATINGS.map((r) => (

@@ -36,3 +36,32 @@ export async function createTestUser(role: "CLIENT" | "THERAPIST" | "ADMIN" | "C
   const accessToken = signAccessToken({ sub: user.id, role: user.role });
   return { user, accessToken };
 }
+
+/**
+ * A client, an ACTIVE therapist, and one booking between them — by default CONFIRMED,
+ * which is the minimum for a care relationship (modules/careTeam/careTeam.service.ts).
+ */
+export async function createCareRelationship(
+  options: { status?: "PENDING_PAYMENT" | "CONFIRMED" | "COMPLETED" | "NO_SHOW" | "CANCELLED"; startsInMs?: number; feeKES?: number } = {},
+) {
+  const client = await createTestUser("CLIENT", { fullName: "Amina Client" });
+  const therapist = await createTestUser("THERAPIST", { fullName: "Brian Therapist" });
+  await prisma.therapistProfile.update({
+    where: { userId: therapist.user.id },
+    data: { status: "ACTIVE", feeKES: options.feeKES ?? 2500 },
+  });
+  const startTime = new Date(Date.now() + (options.startsInMs ?? 2 * 60 * 60 * 1000));
+  const slot = await prisma.availabilitySlot.create({
+    data: { therapistId: therapist.user.id, startTime, endTime: new Date(startTime.getTime() + 60 * 60 * 1000), isBooked: true },
+  });
+  const booking = await prisma.booking.create({
+    data: {
+      clientId: client.user.id,
+      therapistId: therapist.user.id,
+      slotId: slot.id,
+      status: options.status ?? "CONFIRMED",
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    },
+  });
+  return { client, therapist, booking, slot };
+}

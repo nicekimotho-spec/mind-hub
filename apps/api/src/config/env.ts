@@ -34,6 +34,16 @@ const envSchema = z.object({
   MPESA_CALLBACK_ALLOWED_IPS: z.string().optional(),
 
   JOIN_WINDOW_MINUTES_BEFORE: z.coerce.number().int().nonnegative().default(10),
+
+  // Africa's Talking SMS (PRD §12). Same stub-mode rule as M-Pesa: leave the username/key
+  // unset and messages are logged instead of sent (see lib/sms.ts).
+  AT_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
+  AT_USERNAME: z.string().optional(),
+  AT_API_KEY: z.string().optional(),
+  AT_SENDER_ID: z.string().optional(),
+  // Session times in SMS text are rendered in this zone — clients read them on a phone,
+  // not in a browser that knows its own timezone.
+  DISPLAY_TIMEZONE: z.string().default("Africa/Nairobi"),
 });
 
 export const env = envSchema.parse(process.env);

@@ -31,6 +31,10 @@ function ProfileForm() {
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [languagesInput, setLanguagesInput] = useState("");
   const [feeKES, setFeeKES] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [reducedFeeKES, setReducedFeeKES] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -42,6 +46,10 @@ function ProfileForm() {
     setSpecialties(profile.specialties);
     setLanguagesInput(profile.languages.join(", "));
     setFeeKES(String(profile.feeKES));
+    setPhotoUrl(profile.photoUrl ?? "");
+    setYearsExperience(profile.yearsExperience === null ? "" : String(profile.yearsExperience));
+    setRegistrationNumber(profile.registrationNumber ?? "");
+    setReducedFeeKES(profile.reducedFeeKES === null ? "" : String(profile.reducedFeeKES));
   }, [profile]);
 
   async function handleSubmit(e: FormEvent) {
@@ -61,6 +69,10 @@ function ProfileForm() {
       specialties,
       languages,
       feeKES: Number(feeKES),
+      photoUrl: photoUrl.trim() || undefined,
+      yearsExperience: yearsExperience === "" ? undefined : Number(yearsExperience),
+      registrationNumber: registrationNumber.trim() || undefined,
+      reducedFeeKES: reducedFeeKES === "" ? undefined : Number(reducedFeeKES),
     });
     if (!parsed.success) {
       setFieldErrors(zodErrorsToFieldMap(parsed.error));
@@ -140,6 +152,48 @@ function ProfileForm() {
           value={feeKES}
           onChange={(e) => setFeeKES(e.target.value)}
           error={fieldErrors["feeKES"]}
+        />
+
+        <TextField
+          id="reducedFeeKES"
+          label="Reduced fee per session (KES, optional)"
+          type="number"
+          min={1}
+          hint="Offered to clients the Mind Hub team has approved for reduced fees. Leave blank if you don't offer one."
+          value={reducedFeeKES}
+          onChange={(e) => setReducedFeeKES(e.target.value)}
+          error={fieldErrors["reducedFeeKES"]}
+        />
+
+        <TextField
+          id="yearsExperience"
+          label="Years of practice (optional)"
+          type="number"
+          min={0}
+          max={60}
+          value={yearsExperience}
+          onChange={(e) => setYearsExperience(e.target.value)}
+          error={fieldErrors["yearsExperience"]}
+        />
+
+        <TextField
+          id="registrationNumber"
+          label="Professional registration number (optional)"
+          hint="Shown on your public profile so clients can check it with your licensing board."
+          value={registrationNumber}
+          onChange={(e) => setRegistrationNumber(e.target.value)}
+          error={fieldErrors["registrationNumber"]}
+        />
+
+        <TextField
+          id="photoUrl"
+          label="Profile photo link (optional)"
+          type="url"
+          hint="A link to a professional headshot. Profiles with photos feel more approachable."
+          placeholder="https://"
+          value={photoUrl}
+          onChange={(e) => setPhotoUrl(e.target.value)}
+          error={fieldErrors["photoUrl"]}
         />
 
         {formError && <Alert variant="error">{formError}</Alert>}

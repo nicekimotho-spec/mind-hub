@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { registerRequestSchema } from "@mind-hub/shared";
 import { registerRequest } from "./authApi";
 import { ApiClientError } from "../../api/client";
@@ -11,7 +11,9 @@ import { TextField, SelectField } from "../../components/fields";
 
 export function RegisterPage() {
   const navigate = useNavigate();
-  const [role, setRole] = useState<"CLIENT" | "THERAPIST">("CLIENT");
+  const [searchParams] = useSearchParams();
+  // "Apply to join" links arrive with ?role=therapist so therapists don't have to find the role picker.
+  const [role, setRole] = useState<"CLIENT" | "THERAPIST">(searchParams.get("role") === "therapist" ? "THERAPIST" : "CLIENT");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -51,8 +53,19 @@ export function RegisterPage() {
   return (
     <div className="mx-auto max-w-md">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-semibold text-stone-900">You don&apos;t have to figure everything out alone.</h1>
-        <p className="mt-2 text-sm text-stone-500">Connect with a qualified counsellor from wherever you are.</p>
+        {role === "THERAPIST" ? (
+          <>
+            <h1 className="text-2xl font-semibold text-stone-900">Join Mind Hub as a therapist</h1>
+            <p className="mt-2 text-sm text-stone-500">
+              Create your account, then add your credentials for our team to review.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-semibold text-stone-900">You don&apos;t have to figure everything out alone.</h1>
+            <p className="mt-2 text-sm text-stone-500">Connect with a qualified counsellor from wherever you are.</p>
+          </>
+        )}
       </div>
 
       <Card>

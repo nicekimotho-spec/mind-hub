@@ -10,6 +10,7 @@ import { StatusBadge } from "../../components/Badge";
 import { PageSpinner } from "../../components/Spinner";
 import { EmptyState } from "../../components/EmptyState";
 import { formatKES, formatTimeRange } from "../../lib/format";
+import { NotificationSettingsCard } from "../settings/NotificationSettingsCard";
 
 const UPCOMING_STATUSES = new Set(["PENDING_PAYMENT", "CONFIRMED"]);
 
@@ -51,11 +52,20 @@ function ClientDashboard() {
         <LinkButton to="/intake" variant="secondary">
           Start an intake
         </LinkButton>
+        <LinkButton to="/reduced-fees" variant="secondary">
+          Reduced fees
+        </LinkButton>
+        <LinkButton to="/gifts" variant="secondary">
+          Gift sessions
+        </LinkButton>
         <LinkButton to="/bookings" variant="secondary">
           All bookings
         </LinkButton>
       </div>
       <UpcomingBookings isTherapist={false} />
+      <div className="mt-8">
+        <NotificationSettingsCard />
+      </div>
     </div>
   );
 }
@@ -80,6 +90,9 @@ function TherapistDashboard() {
         </LinkButton>
       </div>
       <UpcomingBookings isTherapist={true} />
+      <div className="mt-8">
+        <NotificationSettingsCard />
+      </div>
     </div>
   );
 }
@@ -121,6 +134,16 @@ function AdminDashboard() {
             <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Open complaints</p>
             <p className="mt-1 text-2xl font-semibold text-stone-900">{data.report.openComplaints}</p>
           </Card>
+          <Card>
+            <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Therapist switches</p>
+            <p className="mt-1 text-2xl font-semibold text-stone-900">{data.report.therapistSwitches}</p>
+          </Card>
+          <Link to="/admin/fee-assistance" className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+            <Card className="h-full transition-shadow hover:shadow-md">
+              <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Reduced-fee applications to review</p>
+              <p className="mt-1 text-2xl font-semibold text-stone-900">{data.report.pendingFeeAssistance}</p>
+            </Card>
+          </Link>
         </div>
       )}
     </div>

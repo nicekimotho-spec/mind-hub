@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import type { LoginResponse, PublicUser } from "@mind-hub/shared";
 
-const API_BASE_URL = "http://localhost:4000/api/v1";
+export const API_BASE_URL = "http://localhost:4000/api/v1";
 
 export const testUser: PublicUser = {
   id: "11111111-1111-1111-1111-111111111111",

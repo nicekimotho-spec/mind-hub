@@ -3,6 +3,14 @@ import { prisma } from "../src/lib/db.js";
 /** Deletes all rows in FK-safe order. Used between integration tests for isolation. */
 export async function resetDatabase(): Promise<void> {
   await prisma.$transaction([
+    prisma.message.deleteMany(),
+    prisma.therapistSwitch.deleteMany(),
+    prisma.journalEntry.deleteMany(),
+    prisma.goal.deleteMany(),
+    prisma.worksheetResponse.deleteMany(),
+    prisma.feeAssistanceApplication.deleteMany(),
+    prisma.giftRedemption.deleteMany(),
+    prisma.giftVoucher.deleteMany(),
     prisma.auditLogEntry.deleteMany(),
     prisma.safeguardingIncident.deleteMany(),
     prisma.session.deleteMany(),

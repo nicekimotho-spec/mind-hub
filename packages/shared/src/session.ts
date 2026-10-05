@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { messageSchema } from "./messages.js";
 
-export const SESSION_CHANNELS = ["VIDEO", "AUDIO"] as const;
+export const SESSION_CHANNELS = ["VIDEO", "AUDIO", "CHAT"] as const;
 export type SessionChannel = (typeof SESSION_CHANNELS)[number];
 
 export const SESSION_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "TECH_FAILURE"] as const;
@@ -25,3 +26,11 @@ export const completeSessionRequestSchema = z.object({
   outcome: z.enum(SESSION_OUTCOMES),
 });
 export type CompleteSessionRequest = z.infer<typeof completeSessionRequestSchema>;
+
+/** A live text-chat session's messages, and whether the chat is open for sending now. */
+export const sessionChatSchema = z.object({
+  messages: z.array(messageSchema),
+  canSend: z.boolean(),
+  endsAt: z.string(),
+});
+export type SessionChat = z.infer<typeof sessionChatSchema>;

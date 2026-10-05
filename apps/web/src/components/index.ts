@@ -8,3 +8,6 @@ export * from "./EmptyState";
 export * from "./PageHeader";
 export * from "./Modal";
 export * from "./Spinner";
+export * from "./PageContainer";
+export * from "./CrisisAlert";
+export * from "./Avatar";

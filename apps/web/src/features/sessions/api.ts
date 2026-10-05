@@ -1,4 +1,4 @@
-import type { SessionOutcome } from "@mind-hub/shared";
+import type { SendMessageResponse, SessionChat, SessionOutcome } from "@mind-hub/shared";
 import { apiFetch } from "../../api/client";
 
 export interface SessionRecord {
@@ -16,4 +16,12 @@ export function completeSession(accessToken: string, sessionId: string, outcome:
     accessToken,
     body: { outcome },
   });
+}
+
+export function getSessionChat(accessToken: string, sessionId: string) {
+  return apiFetch<SessionChat>(`/sessions/${sessionId}/messages`, { accessToken });
+}
+
+export function sendSessionChatMessage(accessToken: string, sessionId: string, body: string) {
+  return apiFetch<SendMessageResponse>(`/sessions/${sessionId}/messages`, { method: "POST", accessToken, body: { body } });
 }

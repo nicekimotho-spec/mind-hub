@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTherapist, useTherapistSlots } from "./hooks";
 import { useCreateBooking } from "../bookings/hooks";
 import { useAuth } from "../auth/AuthContext";
-import { PageHeader } from "../../components/PageHeader";
+import { useMyFeeAssistance } from "../feeAssistance/hooks";
 import { Card } from "../../components/Card";
 import { Button } from "../../components/Button";
 import { LinkButton } from "../../components/LinkButton";
@@ -11,7 +11,11 @@ import { Alert } from "../../components/Alert";
 import { EmptyState } from "../../components/EmptyState";
 import { PageSpinner } from "../../components/Spinner";
 import { ApiClientError } from "../../api/client";
+import { Avatar } from "../../components/Avatar";
 import { formatKES, formatTimeRange } from "../../lib/format";
+import { RatingSummary, VerifiedBadge, experienceLabel } from "./TherapistMeta";
+
+const verifiedDateFormatter = new Intl.DateTimeFormat("en-KE", { month: "long", year: "numeric" });
 
 export function TherapistProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +23,7 @@ export function TherapistProfilePage() {
   const { user } = useAuth();
   const { data: therapistData, isLoading: loadingTherapist } = useTherapist(id);
   const { data: slotsData, isLoading: loadingSlots } = useTherapistSlots(id);
+  const { data: feeAssistance } = useMyFeeAssistance();
   const createBooking = useCreateBooking();
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
@@ -32,6 +37,7 @@ export function TherapistProfilePage() {
   }
 
   const therapist = therapistData.therapist;
+  const experience = experienceLabel(therapist.yearsExperience);
 
   async function handleBook(slotId: string) {
     setBookingError(null);
@@ -48,7 +54,21 @@ export function TherapistProfilePage() {
 
   return (
     <div>
-      <PageHeader title={therapist.fullName} description={`${formatKES(therapist.feeKES)} per session`} />
+      <div className="mb-6 flex items-center gap-4">
+        <Avatar name={therapist.fullName} photoUrl={therapist.photoUrl} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-stone-900">{therapist.fullName}</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            {formatKES(therapist.feeKES)} per session
+            {therapist.reducedFeeKES !== null && ` · ${formatKES(therapist.reducedFeeKES)} for people approved for reduced fees`}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <VerifiedBadge />
+            <RatingSummary rating={therapist.rating} />
+            {experience && <span className="text-sm text-stone-500">{experience}</span>}
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-6 sm:grid-cols-3">
         <div className="sm:col-span-2">
@@ -74,12 +94,38 @@ export function TherapistProfilePage() {
               <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Languages</p>
               <p className="mt-1 text-sm text-stone-600">{therapist.languages.join(", ")}</p>
             </div>
+            <div className="mt-4 border-t border-stone-200 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Credentials</p>
+              <p className="mt-1 text-sm text-stone-600">
+                Credentials reviewed by the Mind Hub team
+                {therapist.verifiedAt && ` in ${verifiedDateFormatter.format(new Date(therapist.verifiedAt))}`}.
+                {therapist.registrationNumber && (
+                  <>
+                    {" "}
+                    Professional registration no. <span className="font-medium text-stone-900">{therapist.registrationNumber}</span>.
+                  </>
+                )}
+              </p>
+            </div>
           </Card>
         </div>
 
         <div>
           <Card>
             <h2 className="font-medium text-stone-900">Available times</h2>
+            {therapist.reducedFeeKES !== null && feeAssistance?.isEligible && (
+              <Alert variant="success" className="mt-3">
+                You&apos;re approved for reduced fees, so you&apos;ll pay {formatKES(therapist.reducedFeeKES)} per session.
+              </Alert>
+            )}
+            {therapist.reducedFeeKES !== null && user?.role === "CLIENT" && feeAssistance && !feeAssistance.isEligible && (
+              <p className="mt-2 text-xs text-stone-500">
+                Finding the fee hard to manage?{" "}
+                <Link to="/reduced-fees" className="font-medium text-brand-700 hover:underline">
+                  Apply for reduced fees
+                </Link>
+              </p>
+            )}
 
             {bookingError && (
               <Alert variant="error" className="mt-3">
